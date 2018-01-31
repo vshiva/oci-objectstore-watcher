@@ -13,21 +13,22 @@ package server
 
 import (
 	"github.com/fnproject/oci-objectstore-watcher/ociobjectstorewatcherpb"
-	"github.com/fnproject/oci-objectstore-watcher/state"
+	obstore "github.com/oracle/oci-go-sdk/objectstorage"
 
 	"golang.org/x/net/context"
 )
 
 // New Creates a new OciObjectstoreWatcherServer which implements ociobjectstorewatcherpb.OciObjectstoreWatcherServer.
-func New(store state.Store) (*OciObjectstoreWatcherServer, error) {
+func New(client obstore.ObjectStorageClient) (*OciObjectstoreWatcherServer, error) {
+
 	return &OciObjectstoreWatcherServer{
-		store: store,
+		objectStoreClient: client,
 	}, nil
 }
 
 // OciObjectstoreWatcherServer implements ociobjectstorewatcherpb.OciObjectstoreWatcherServer.
 type OciObjectstoreWatcherServer struct {
-	store state.Store
+	objectStoreClient obstore.ObjectStorageClient
 }
 
 // Action is a example implementation and should be replaced with an actual

@@ -21,9 +21,9 @@ import (
 func main() {
 	app := cli.NewApp()
 
-	app.Name = "OciObjectstoreWatcher"
-	app.Copyright = "(c) 2018 Wercker Holding BV"
-	app.Usage = "Example description"
+	app.Name = "OCI Objectstore Watcher"
+	app.Copyright = "(c) 2018 Oracle"
+	app.Usage = "OCI Objectstore Bucket Watcher"
 
 	app.Version = Version()
 	app.Compiled = CompiledAt()

@@ -16,13 +16,17 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
+
+	"github.com/oracle/oci-go-sdk/common/auth"
+	obstore "github.com/oracle/oci-go-sdk/objectstorage"
 
 	"github.com/fnproject/oci-objectstore-watcher/ociobjectstorewatcherpb"
 	"github.com/fnproject/oci-objectstore-watcher/server"
-	"github.com/fnproject/oci-objectstore-watcher/state"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	grpcmw "github.com/mwitkow/go-grpc-middleware"
 	"github.com/pkg/errors"
@@ -32,7 +36,6 @@ import (
 	"github.com/wercker/pkg/log"
 	"github.com/wercker/pkg/trace"
 	"google.golang.org/grpc"
-	mgo "gopkg.in/mgo.v2"
 	cli "gopkg.in/urfave/cli.v1"
 )
 
@@ -59,19 +62,26 @@ var serverFlags = []cli.Flag{
 		Value:  43406,
 		EnvVar: "METRICS_PORT",
 	},
-	cli.StringFlag{
-		Name:   "mongo",
-		Value:  "mongodb://localhost:27017",
-		EnvVar: "MONGODB_URI",
+	cli.StringSliceFlag{
+		Name:   "buckets",
+		Usage:  "Object store buckets to watch",
+		EnvVar: "OBJECTSTORE_BUCKETS",
 	},
 	cli.StringFlag{
-		Name:  "mongo-database",
-		Value: "oci-objectstore-watcher",
+		Name:   "namespace",
+		Usage:  "Object store namespace",
+		EnvVar: "OBJECTSTORE_NAMESPACE",
 	},
 	cli.StringFlag{
-		Name:  "state-store",
-		Usage: "storage driver, currently supported [mongo]",
-		Value: "mongo",
+		Name:   "poll-interval",
+		Usage:  "Polling interval to check bucket changes",
+		Value:  "30s",
+		EnvVar: "OBJECTSTORE_POLL_INTERVAL",
+	},
+	cli.StringFlag{
+		Name:   "webhook-url",
+		Usage:  "Webhook callback url at which changes are notified",
+		EnvVar: "WEBHOOK_URL",
 	},
 }
 
@@ -93,26 +103,19 @@ var serverAction = func(c *cli.Context) error {
 		return errorExitCode
 	}
 
-	store, err := getStore(o)
+	cfgProvider, err := auth.InstancePrincipalConfigurationProvider()
 	if err != nil {
-		log.WithError(err).Error("Unable to create store")
+		log.WithError(err).Error("Unable to get a Instance Principal Config Provider")
 		return errorExitCode
 	}
-	defer store.Close()
-
-	err = store.Initialize()
+	client, err := obstore.NewObjectStorageClientWithConfigurationProvider(cfgProvider)
 	if err != nil {
-		log.WithError(err).Error("Unable to initialize store")
+		log.WithError(err).Error("Unable to connect to object store")
 		return errorExitCode
 	}
-
-	healthService.RegisterProbe("store", store)
-
-	store = state.NewTraceStore(store, tracer)
-	store = state.NewMetricsStore(store)
 
 	log.Debug("Creating server")
-	server, err := server.New(store)
+	server, err := server.New(client)
 	if err != nil {
 		log.WithError(err).Error("Unable to create server")
 		return errorExitCode
@@ -180,12 +183,15 @@ var serverAction = func(c *cli.Context) error {
 type serverOptions struct {
 	*conf.TraceOptions
 
-	MongoDatabase string
-	MongoURI      string
-	Port          int
-	HealthPort    int
-	MetricsPort   int
-	StateStore    string
+	WebHookURL         url.URL
+	Buckets            []string
+	Namespace          string
+	BucketPollInterval time.Duration
+
+	Port        int
+	HealthPort  int
+	MetricsPort int
+	StateStore  string
 }
 
 func parseServerOptions(c *cli.Context) (*serverOptions, error) {
@@ -218,41 +224,41 @@ func parseServerOptions(c *cli.Context) (*serverOptions, error) {
 		return nil, errors.New("metrics-port and health-port cannot be the same")
 	}
 
+	namespace := c.String("namespace")
+	if namespace == "" {
+		return nil, errors.New("namespace is required")
+	}
+
+	webHook := c.String("webhook-url")
+	if webHook == "" {
+		return nil, errors.New("webhook-url is required")
+	}
+	webHookURL, err := url.Parse(webHook)
+	if err != nil {
+		return nil, fmt.Errorf("invalid webhook-url - %v", err)
+	}
+
+	duration, err := time.ParseDuration(c.String("poll-interval"))
+	if err != nil {
+		return nil, fmt.Errorf("invalid poll interval - %v", err)
+	}
+
+	buckets := c.StringSlice("buckets")
+	if len(buckets) == 0 {
+		return nil, errors.New("Atleast one bucket must be specified")
+	} else if len(buckets) > 10 {
+		return nil, errors.New("A maximum of 10 buckets is supported")
+	}
+
 	return &serverOptions{
-		TraceOptions: traceOptions,
-
-		MongoDatabase: c.String("mongo-database"),
-		MongoURI:      c.String("mongo"),
-		Port:          port,
-		HealthPort:    healthPort,
-		MetricsPort:   metricsPort,
-		StateStore:    c.String("state-store"),
+		TraceOptions:       traceOptions,
+		Buckets:            buckets,
+		Namespace:          namespace,
+		WebHookURL:         *webHookURL,
+		BucketPollInterval: duration,
+		Port:               port,
+		HealthPort:         healthPort,
+		MetricsPort:        metricsPort,
+		StateStore:         c.String("state-store"),
 	}, nil
-}
-
-func getStore(o *serverOptions) (state.Store, error) {
-	switch o.StateStore {
-	case "mongo":
-		return getMongoStore(o)
-	default:
-		return nil, fmt.Errorf("Invalid store: %s", o.StateStore)
-	}
-}
-
-func getMongoStore(o *serverOptions) (*state.MongoStore, error) {
-	log.Info("Creating MongoDB store")
-
-	log.WithField("MongoURI", o.MongoURI).Debug("Dialing the MongoDB cluster")
-	session, err := mgo.Dial(o.MongoURI)
-	if err != nil {
-		return nil, errors.Wrap(err, "Dialing the MongoDB cluster failed")
-	}
-
-	log.WithField("MongoDatabase", o.MongoDatabase).Debug("Creating MongoDB store")
-	store, err := state.NewMongoStore(session, o.MongoDatabase)
-	if err != nil {
-		return nil, errors.Wrap(err, "Creating MongoDB store failed")
-	}
-
-	return store, nil
 }
