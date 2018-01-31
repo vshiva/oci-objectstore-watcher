@@ -1,0 +1,78 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "ociobjectstorewatcher.proto",
+    "version": "version not set"
+  },
+  "schemes": [
+    "http",
+    "https"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v3/oci-objectstore-watcher/action": {
+      "post": {
+        "operationId": "Action",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/ociobjectstorewatcherActionResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ociobjectstorewatcherActionRequest"
+            }
+          }
+        ],
+        "tags": [
+          "OciObjectstoreWatcher"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "ociobjectstorewatcherActionRequest": {
+      "type": "object",
+      "properties": {
+        "resourceApplicationId": {
+          "type": "string"
+        },
+        "resourceUserId": {
+          "type": "string"
+        },
+        "resource": {
+          "$ref": "#/definitions/ociobjectstorewatcherResource"
+        }
+      }
+    },
+    "ociobjectstorewatcherActionResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "format": "boolean"
+        }
+      }
+    },
+    "ociobjectstorewatcherResource": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

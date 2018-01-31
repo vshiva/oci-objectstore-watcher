@@ -1,0 +1,9 @@
+{
+  "Template": "service",
+  "Name": "oci-objectstore-watcher",
+  "Port": 666,
+  "GatewayPort": 667,
+  "HealthPort": 668,
+  "Year": "2018",
+  "Description": "Example description"
+}

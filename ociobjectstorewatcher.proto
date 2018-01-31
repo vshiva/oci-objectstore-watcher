@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package ociobjectstorewatcher;
+
+option go_package = "ociobjectstorewatcherpb";
+
+import "google/api/annotations.proto";
+
+service OciObjectstoreWatcher {
+  rpc Action(ActionRequest) returns (ActionResponse) {
+    option (google.api.http) = {
+      post: "/api/v3/oci-objectstore-watcher/action"
+      body: "*"
+    };
+  }
+}
+
+message ActionRequest {
+  string resourceApplicationId = 1;
+  string resourceUserId = 2;
+  Resource resource = 3;
+}
+
+message ActionResponse {
+  bool success = 1;
+}
+
+message Resource {
+  string kind = 1;
+}

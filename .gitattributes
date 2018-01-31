@@ -1,0 +1,6 @@
+oci-objectstore-watcherpb/oci-objectstore-watcher.flow.js linguist-generated=true
+oci-objectstore-watcherpb/oci-objectstore-watcher.pb.go linguist-generated=true
+oci-objectstore-watcherpb/oci-objectstore-watcher.pb.gw.go linguist-generated=true
+oci-objectstore-watcherpb/oci-objectstore-watcher.swagger.json linguist-generated=true
+state/metrics_store.go linguist-generated=true
+state/trace_store.go linguist-generated=true
