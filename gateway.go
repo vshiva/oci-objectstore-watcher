@@ -25,7 +25,6 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	"github.com/pkg/errors"
-	"github.com/wercker/auth/middleware"
 	"github.com/wercker/pkg/conf"
 	"github.com/wercker/pkg/log"
 	"github.com/wercker/pkg/trace"
@@ -77,7 +76,6 @@ var gatewayAction = func(c *cli.Context) error {
 
 	// The following handlers will be called in reversed order (ie. bottom to top)
 	var handler http.Handler
-	handler = middleware.AuthTokenMiddleware(mux)   // authentication middleware
 	handler = trace.HTTPMiddleware(handler, tracer) // opentracing + expose trace ID
 
 	opts := []grpc.DialOption{
