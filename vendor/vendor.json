@@ -243,7 +243,7 @@
 			"revisionTime": "2018-01-30T17:24:52Z"
 		},
 		{
-			"checksumSHA1": "4em2+LMym8s6pV+8y5y804cI+vc=",
+			"checksumSHA1": "sHvca5wrWy5MkfCUpt30ZhXwsEs=",
 			"path": "github.com/oracle/oci-go-sdk/objectstorage",
 			"revision": "fcc68bfdb7dc011120e116edaa641bebca394b42",
 			"revisionTime": "2018-01-30T17:24:52Z"
@@ -319,12 +319,6 @@
 			"path": "github.com/sirupsen/logrus",
 			"revision": "89742aefa4b206dcf400792f3bd35b542998eb3b",
 			"revisionTime": "2017-08-22T13:27:46Z"
-		},
-		{
-			"checksumSHA1": "lLwoorVRJecmHPGChm3wUSjDr3s=",
-			"path": "github.com/wercker/auth/middleware",
-			"revision": "437a0b3ccd6fa63295841ed0d9b3a5eb8596b55b",
-			"revisionTime": "2017-09-21T17:41:45Z"
 		},
 		{
 			"checksumSHA1": "DsON1WSrqQ2kYRGQCJXx364d2o0=",
@@ -597,5 +591,5 @@
 			"revisionTime": "2017-08-11T01:42:03Z"
 		}
 	],
-	"rootPath": "github.com/fnproject/oci-objectstore-watcher"
+	"rootPath": "github.com/vshiva/oci-objectstore-watcher"
 }

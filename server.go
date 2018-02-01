@@ -115,7 +115,7 @@ var serverAction = func(c *cli.Context) error {
 	}
 
 	log.Debug("Creating server")
-	server, err := server.New(client)
+	srv, err := server.New(client)
 	if err != nil {
 		log.WithError(err).Error("Unable to create server")
 		return errorExitCode
@@ -128,7 +128,7 @@ var serverAction = func(c *cli.Context) error {
 	}
 
 	s := grpc.NewServer(grpcmw.WithUnaryServerChain(interceptors...))
-	ociobjectstorewatcherpb.RegisterOciObjectstoreWatcherServer(s, server)
+	ociobjectstorewatcherpb.RegisterOciObjectstoreWatcherServer(s, srv)
 	grpc_prometheus.EnableHandlingTimeHistogram()
 	grpc_prometheus.Register(s)
 
@@ -136,6 +136,13 @@ var serverAction = func(c *cli.Context) error {
 	if err != nil {
 		log.WithField("port", o.Port).WithError(err).Error("Failed to listen")
 		return errorExitCode
+	}
+
+	watcher := server.ObjectWatcher{
+		Namespace:    o.Namespace,
+		Buckets:      o.Buckets,
+		WebhookURI:   o.WebHookURL,
+		PollInterval: o.BucketPollInterval,
 	}
 
 	errc := make(chan error, 4)
@@ -168,11 +175,18 @@ var serverAction = func(c *cli.Context) error {
 		errc <- http.ListenAndServe(fmt.Sprintf(":%d", o.MetricsPort), nil)
 	}()
 
+	// Start watching object store buckets
+	go func() {
+		log.Info("Start watching buckets")
+		watcher.Watch(client)
+	}()
+
 	err = <-errc
 	log.WithError(err).Info("Shutting down")
 
 	// Gracefully shutdown the health server
 	healthService.Shutdown(context.Background())
+	watcher.Shutdown()
 
 	// Gracefully shutdown the gRPC server
 	s.GracefulStop()
@@ -183,7 +197,7 @@ var serverAction = func(c *cli.Context) error {
 type serverOptions struct {
 	*conf.TraceOptions
 
-	WebHookURL         url.URL
+	WebHookURL         string
 	Buckets            []string
 	Namespace          string
 	BucketPollInterval time.Duration
@@ -233,7 +247,7 @@ func parseServerOptions(c *cli.Context) (*serverOptions, error) {
 	if webHook == "" {
 		return nil, errors.New("webhook-url is required")
 	}
-	webHookURL, err := url.Parse(webHook)
+	_, err := url.Parse(webHook)
 	if err != nil {
 		return nil, fmt.Errorf("invalid webhook-url - %v", err)
 	}
@@ -254,7 +268,7 @@ func parseServerOptions(c *cli.Context) (*serverOptions, error) {
 		TraceOptions:       traceOptions,
 		Buckets:            buckets,
 		Namespace:          namespace,
-		WebHookURL:         *webHookURL,
+		WebHookURL:         webHook,
 		BucketPollInterval: duration,
 		Port:               port,
 		HealthPort:         healthPort,

@@ -30,3 +30,4 @@ oci-objectstore-watcher
 
 .DS_Store
 *.swp
+.vscode/
